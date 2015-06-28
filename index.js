@@ -14,8 +14,6 @@ var tumblr = new Tumblr(
   }, "doors-of-hamburg.tumblr.com"
 );
 
-var photo = fs.readFileSync('./test/img/P1010486.jpg');
-
 app.set('port', (process.env.PORT || 5000));
 
 app.get('/', function(request, response) {
