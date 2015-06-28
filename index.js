@@ -11,6 +11,7 @@ var TumblrStrategy = require('passport-tumblr').Strategy;
 var clone          = require("nodegit").Clone.clone;
 var open           = require("nodegit").Repository.open;
 
+var swig = require('swig');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var morgan = require('morgan');
@@ -24,8 +25,10 @@ var SITE_URL          = process.env.DEV ? "http://localhost:5000" : "http://door
 var app = express();
 
 // configure Express
+app.engine('html', swig.renderFile);
+
 app.set('views', __dirname + '/views');
-app.set('view engine', 'ejs');
+app.set('view engine', 'html');
 app.set('port', (process.env.PORT || 5000));
 
 app.use(multer({dest: './tmp'}));
@@ -82,7 +85,7 @@ fs.stat(REPO_PATH, function(err, stat){
 
 // -------- App
 app.get('/', function(request, response) {
-  response.send(request.user);
+  response.render('index', { user: request.user });
 });
 
 app.get('/auth/tumblr',
@@ -94,9 +97,51 @@ app.get('/auth/tumblr/callback',
     // Successful authentication, redirect home.
     res.redirect('/');
   });
-  // Commit geojson to Github
 
-  response.send();
+app.post('/queue', function(req, res) {
+  var tumblr = new Tumblr(
+    {
+      consumerKey:    process.env.TUMBLR_OAUTH_KEY,
+      consumerSecret: process.env.TUMBLR_OAUTH_SECRET,
+      accessToken:    req.user.token,
+      accessSecret:   req.user.secret
+    }, "doors-of-hamburg.tumblr.com"
+  );
+
+  var jsonData = JSON.parse(fs.readFileSync(GEOJSON_FILE_PATH));
+
+  req.files.photo.forEach(function(file) {
+    // Send post to queue
+    var photo = fs.readFileSync(file.path);
+    var postData = {
+      type: 'photo',
+      data: [photo],
+      tags: "door, Hamburg",
+      state: "queue"
+    };
+
+    tumblr.post('/post', postData, function(err, json) {
+      console.log(err);
+      console.log(json);
+    });
+
+    // Extract geojson from a file
+    geojson.processImage(file.path, function(geojsonFeature) {
+      if (geojsonFeature) {
+        jsonData.features.push(geojsonFeature);
+      }
+    });
+  });
+
+  // Write new json file
+  fs.writeFileSync(GEOJSON_FILE_PATH, JSON.stringify(jsonData, null, 2));
+
+  // Commit geojson to Github
+  // Portier.commit();
+
+  // Push
+
+  res.redirect("/");
 });
 
 app.listen(app.get('port'), function() {

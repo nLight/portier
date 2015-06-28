@@ -27,6 +27,7 @@
     "morgan": "",
     "method-override": "",
     "express-session": "",
+    "swig": "",
 
     "dotenv": "",
     "exif-to-geojson": "https://github.com/nLight/exif-to-geojson"

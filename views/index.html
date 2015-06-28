@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>A Secret Door of Hamburg</title>
+  </head>
+  <body>
+    {% if user.token %}
+      <form class="" action="/queue" method="post" enctype="multipart/form-data">
+        <input type="file" name="photo" multiple="multiple">
+        <input type="submit" name="submit" value="Send!">
+      </form>
+    {% else %}
+      <a href="/auth/tumblr">Login</a>
+    {% endif %}
+  </body>
+</html>
