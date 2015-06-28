@@ -1,0 +1,17 @@
+{
+  "name": "portier",
+  "version": "0.0.1",
+  "description": "Tumblr queue helper. Queues an image to a tumblr blog and commits its geo-tag to a github repo in geojson format.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Tumblr",
+    "github",
+    "geojson",
+    "blogging"
+  ],
+  "author": "Dmitriy Rozhkov",
+  "license": "MIT"
+}
