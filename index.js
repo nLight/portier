@@ -1,7 +1,6 @@
 var express = require('express');
 var geojson = require('exif-to-geojson');
 var Tumblr  = require('tumblrwks');
-var Github  = require('github');
 
 var app = express();
 
