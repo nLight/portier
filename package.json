@@ -19,6 +19,16 @@
     "express": "~> 4.13.0",
     "tumblrwks": "~> 0.2.0",
     "nodegit": "",
+    "multer": "",
+    "passport-tumblr": "",
+    "passport": "",
+    "cookie-parser": "",
+    "body-parser": "",
+    "morgan": "",
+    "method-override": "",
+    "express-session": "",
+
+    "dotenv": "",
     "exif-to-geojson": "https://github.com/nLight/exif-to-geojson"
   }
 }

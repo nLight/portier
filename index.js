@@ -1,86 +1,98 @@
-var express = require('express');
-var geojson = require('exif-to-geojson');
-var Tumblr  = require('tumblrwks');
-var fs      = require('fs');
+require('dotenv').load();
 
-var clone   = require("nodegit").Clone.clone;
-var open    = require("nodegit").Repository.open;
+var express        = require('express');
+var geojson        = require('exif-to-geojson');
+var Tumblr         = require('tumblrwks');
+var fs             = require('fs');
+var os             = require('os');
+var multer         = require('multer');
+var passport       = require('passport');
+var TumblrStrategy = require('passport-tumblr').Strategy;
+var clone          = require("nodegit").Clone.clone;
+var open           = require("nodegit").Repository.open;
+
+var cookieParser = require('cookie-parser');
+var bodyParser = require('body-parser');
+var morgan = require('morgan');
+var methodOverride = require('method-override');
+var expressSession = require('express-session');
+
+var REPO_PATH         = "./tmp/repo";
+var GEOJSON_FILE_PATH = REPO_PATH + "/doors.geojson";
+var SITE_URL          = process.env.DEV ? "http://localhost:5000" : "http://doors-of-hamburg.heroku.com";
 
 var app = express();
 
-var tumblr = new Tumblr(
-  {
-    consumerKey: 'your consumer key',
-    consumerSecret: 'your consumer secret',
-    accessToken: 'access token',
-    accessSecret: 'access secret'
-  }, "doors-of-hamburg.tumblr.com"
-);
-
+// configure Express
+app.set('views', __dirname + '/views');
+app.set('view engine', 'ejs');
 app.set('port', (process.env.PORT || 5000));
 
-app.get('/', function(request, response) {
-  fs.stat('./tmp/repo', function(err, stat){
+app.use(multer({dest: './tmp'}));
 
-    if (err) {
-      var cloneOptions = {};
+app.use(morgan());
+app.use(cookieParser());
+app.use(bodyParser());
+app.use(methodOverride());
+app.use(expressSession({ secret: process.env.SESSION_SECRET }));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use(express.static(__dirname + '/public'));
+
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function(obj, done) {
+  done(null, obj);
+});
+
+passport.use(new TumblrStrategy({
+    consumerKey: process.env.TUMBLR_OAUTH_KEY,
+    consumerSecret: process.env.TUMBLR_OAUTH_SECRET,
+    callbackURL: SITE_URL + "/auth/tumblr/callback"
+  },
+  function(token, tokenSecret, profile, done) {
+    return done(null, {token: token, secret: tokenSecret});
+  }
+));
+
+var repo;
+
+fs.stat(REPO_PATH, function(err, stat){
+  if (err) { // Repo doesn't exist
+    var cloneOptions = {};
+
+    if (os.platform() === 'darwin') {
+      // OSX has an issue with https
       cloneOptions.remoteCallbacks = {
         certificateCheck: function() { return 1; }
       };
-
-      clone("https://github.com/nLight/doors-of-hamburg.git", "./tmp/repo", cloneOptions)
-        .catch(function(err) { console.log(err); });
     }
 
-    open("./tmp/repo")
-      .then(function(repo) {
-        return repo.getMasterCommit();
-      })
-      // Display information about commits on master.
-      .then(function(firstCommitOnMaster) {
-        // Create a new history event emitter.
-        var history = firstCommitOnMaster.history();
-
-        // Create a counter to only show up to 9 entries.
-        var count = 0;
-
-        // Listen for commit events from the history.
-        history.on("commit", function(commit) {
-          // Disregard commits past 9.
-          if (++count >= 9) {
-            return;
-          }
-
-          // Show the commit sha.
-          console.log("commit " + commit.sha());
-
-          // Store the author object.
-          var author = commit.author();
-
-          // Display author information.
-          console.log("Author:\t" + author.name() + " <", author.email() + ">");
-
-          // Show the commit date.
-          console.log("Date:\t" + commit.date());
-
-          // Give some space and show the message.
-          console.log("\n    " + commit.message());
-        });
-
-        // Start emitting events.
-        history.start();
-      });
-  });
-  
-  response.send("Ok!");
+    repo = clone("https://github.com/nLight/doors-of-hamburg.git", REPO_PATH, cloneOptions)
+      .catch(function(err) { console.log(err); });
+  }
+  else {
+    repo = open(REPO_PATH);
+  }
 });
 
-app.post('/queue', function(request, response) {
-  // Extract geojson from a file
-  geojson.processImage();
-  // Send post to queue
-  tumblr.post('/post', {type: 'photo', data: [photo]}, function(err, json){
+// -------- App
+app.get('/', function(request, response) {
+  response.send(request.user);
+});
 
+app.get('/auth/tumblr',
+  passport.authenticate('tumblr'));
+
+app.get('/auth/tumblr/callback',
+  passport.authenticate('tumblr', { failureRedirect: '/' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('/');
   });
   // Commit geojson to Github
 
